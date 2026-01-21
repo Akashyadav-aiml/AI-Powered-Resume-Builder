@@ -2,6 +2,8 @@
 MongoDB Database Setup and Verification Script
 Run this to verify your MongoDB connection and create the database
 """
+
+
 import os
 from motor.motor_asyncio import AsyncIOMotorClient
 from dotenv import load_dotenv
@@ -25,6 +27,8 @@ async def verify_and_setup_database():
         print(f"Database name: {db_name}")
         print("-" * 60)
         
+
+
         # Connect to MongoDB
         client = AsyncIOMotorClient(mongo_url)
         db = client[db_name]
@@ -74,3 +78,9 @@ async def verify_and_setup_database():
 
 if __name__ == "__main__":
     asyncio.run(verify_and_setup_database())
+
+
+
+
+
+
