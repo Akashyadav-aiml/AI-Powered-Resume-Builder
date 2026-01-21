@@ -13,7 +13,7 @@ from PyPDF2 import PdfReader
 from docx import Document
 import io
 import re
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+from llm_helper import enhance_with_openai as llm_enhance_openai, enhance_with_gemini as llm_enhance_gemini
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -159,36 +159,10 @@ def calculate_ats_score(text: str, sections: List[ResumeSection]) -> ATSScore:
     )
 
 async def enhance_with_openai(text: str) -> str:
-    try:
-        api_key = os.environ.get('EMERGENT_LLM_KEY')
-        chat = LlmChat(
-            api_key=api_key,
-            session_id=f"openai-{uuid.uuid4()}",
-            system_message="You are an expert resume writer. Enhance the given resume content to be more ATS-friendly while maintaining accuracy. Focus on clear, concise language, strong action verbs, and quantifiable achievements."
-        ).with_model("openai", "gpt-4o")
-        
-        message = UserMessage(text=f"Enhance this resume content for ATS optimization:\n\n{text}")
-        response = await chat.send_message(message)
-        return response
-    except Exception as e:
-        logger.error(f"OpenAI enhancement error: {e}")
-        return text
+    return await llm_enhance_openai(text)
 
 async def enhance_with_gemini(text: str) -> str:
-    try:
-        api_key = os.environ.get('EMERGENT_LLM_KEY')
-        chat = LlmChat(
-            api_key=api_key,
-            session_id=f"gemini-{uuid.uuid4()}",
-            system_message="You are an expert career coach and resume optimizer. Improve the given resume content with industry-specific keywords, better formatting, and professional language."
-        ).with_model("gemini", "gemini-3-flash-preview")
-        
-        message = UserMessage(text=f"Optimize this resume content for better ATS compatibility:\n\n{text}")
-        response = await chat.send_message(message)
-        return response
-    except Exception as e:
-        logger.error(f"Gemini enhancement error: {e}")
-        return text
+    return await llm_enhance_gemini(text)
 
 def generate_pdf(resume_data: dict) -> bytes:
     buffer = io.BytesIO()
