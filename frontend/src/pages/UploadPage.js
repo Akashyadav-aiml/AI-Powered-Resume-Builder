@@ -61,14 +61,18 @@ const UploadPage = () => {
     formData.append('file', file);
 
     try {
+      console.log('Uploading to:', `${API}/resume/upload`);
       const response = await axios.post(`${API}/resume/upload`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 60000 // 60 second timeout for slow backend wake-up
       });
       toast.success("Resume uploaded successfully!");
       navigate(`/dashboard/${response.data.resume_id}`);
     } catch (error) {
-      console.error(error);
-      toast.error("Failed to upload resume");
+      console.error('Upload error:', error);
+      console.error('Error response:', error.response?.data);
+      const errorMsg = error.response?.data?.detail || error.message || "Failed to upload resume";
+      toast.error(errorMsg);
     } finally {
       setUploading(false);
     }
