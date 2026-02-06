@@ -1,9 +1,11 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles, Target, TrendingUp } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 const LandingPage = () => {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
   return (
     <div className="min-h-screen bg-white">
@@ -12,13 +14,43 @@ const LandingPage = () => {
           <div className="font-chivo text-2xl font-bold tracking-tight text-[#111111]">
             CareerArchitect
           </div>
-          <Button
-            data-testid="nav-get-started-btn"
-            onClick={() => navigate("/upload")}
-            className="bg-swiss-blue text-white rounded-sm hover:bg-[#003399] font-medium px-6 py-2"
-          >
-            Get Started
-          </Button>
+          <div className="flex gap-4 items-center">
+            {user ? (
+              <>
+                <span className="text-sm text-[#555555]">Welcome, {user.full_name}!</span>
+                <Button
+                  onClick={() => logout()}
+                  variant="outline"
+                  className="rounded-sm"
+                >
+                  Logout
+                </Button>
+                <Button
+                  onClick={() => navigate("/upload")}
+                  className="bg-swiss-blue text-white rounded-sm hover:bg-[#003399] font-medium px-6 py-2"
+                >
+                  Dashboard
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  onClick={() => navigate("/login")}
+                  variant="outline"
+                  className="rounded-sm"
+                >
+                  Sign In
+                </Button>
+                <Button
+                  data-testid="nav-get-started-btn"
+                  onClick={() => navigate("/register")}
+                  className="bg-swiss-blue text-white rounded-sm hover:bg-[#003399] font-medium px-6 py-2"
+                >
+                  Get Started
+                </Button>
+              </>
+            )}
+          </div>
         </div>
       </nav>
 
