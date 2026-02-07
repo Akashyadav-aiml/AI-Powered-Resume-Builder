@@ -1,5 +1,5 @@
 from fastapi import FastAPI, APIRouter, UploadFile, File, HTTPException, Depends
-from fastapi.security import HTTPBearer, HTTPAuthCredentials
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -19,8 +19,8 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
-from . import llm_helper as llm_ops
-from .auth import create_access_token, decode_token, verify_password, get_password_hash, Token
+import llm_helper as llm_ops
+from auth import create_access_token, decode_token, verify_password, get_password_hash, Token
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -297,7 +297,7 @@ async def login(user_data: UserLogin):
         raise HTTPException(status_code=500, detail="Login failed")
 
 @api_router.get("/auth/me", response_model=User)
-async def get_current_user(credentials: HTTPAuthCredentials = Depends(security)):
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
         token = credentials.credentials
         payload = decode_token(token)
@@ -318,7 +318,7 @@ async def get_current_user(credentials: HTTPAuthCredentials = Depends(security))
         raise HTTPException(status_code=401, detail="Authentication failed")
 
 # Helper to get current user from token
-async def get_current_user_id(credentials: HTTPAuthCredentials = Depends(security)) -> str:
+async def get_current_user_id(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
     payload = decode_token(credentials.credentials)
     if not payload:
         raise HTTPException(status_code=401, detail="Invalid token")

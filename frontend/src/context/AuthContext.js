@@ -18,10 +18,14 @@ export const AuthProvider = ({ children }) => {
 
   // Verify token on mount
   useEffect(() => {
-    if (token) {
-      verifyToken();
-    }
-    setLoading(false);
+    const initAuth = async () => {
+      if (token) {
+        await verifyToken();
+      }
+      setLoading(false);
+    };
+    initAuth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const verifyToken = async () => {
