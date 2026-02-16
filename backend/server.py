@@ -510,6 +510,14 @@ async def generate_resume(resume_id: str, format: str = "pdf", user_id: str = De
 
 app.include_router(api_router)
 
+@app.get("/")
+async def app_root():
+    return {
+        "message": "CareerArchitect API - AI Resume Builder",
+        "docs": "/docs",
+        "api": "/api/"
+    }
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
