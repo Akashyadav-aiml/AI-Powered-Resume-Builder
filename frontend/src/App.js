@@ -1,5 +1,6 @@
 import "@/App.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 import { AuthProvider } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import LandingPage from "@/pages/LandingPage";
@@ -11,6 +12,7 @@ import { Toaster } from "@/components/ui/sonner";
 
 function App() {
   return (
+    <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID || ""}>
     <div className="App">
       <Toaster />
       <BrowserRouter>
@@ -40,6 +42,7 @@ function App() {
         </AuthProvider>
       </BrowserRouter>
     </div>
+    </GoogleOAuthProvider>
   );
 }
 

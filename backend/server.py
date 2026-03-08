@@ -16,9 +16,11 @@ import io
 import re
 
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 import llm_helper as llm_ops
 from auth import create_access_token, decode_token, verify_password, get_password_hash, Token
 
@@ -98,6 +100,9 @@ class ManualResumeInput(BaseModel):
 class EnhanceRequest(BaseModel):
     resume_id: str
     enhancement_type: str = "both"
+
+class GoogleAuthRequest(BaseModel):
+    credential: str  # Google ID token
 
 # Helper Functions
 def extract_text_from_pdf(file_content: bytes) -> str:
@@ -188,56 +193,406 @@ async def enhance_with_gemini(text: str) -> str:
 
 def generate_pdf(resume_data: dict) -> bytes:
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
-    
-    styles = getSampleStyleSheet()
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=16,
-        textColor='#111111',
-        spaceAfter=12,
+    doc = SimpleDocTemplate(
+        buffer, pagesize=letter,
+        rightMargin=0.6*inch, leftMargin=0.6*inch,
+        topMargin=0.55*inch, bottomMargin=0.45*inch
     )
-    heading_style = ParagraphStyle(
-        'CustomHeading',
-        parent=styles['Heading2'],
-        fontSize=12,
-        textColor='#0044CC',
-        spaceAfter=6,
+
+    BLACK  = colors.HexColor('#1A1A1A')
+    DGRAY  = colors.HexColor('#2D2D2D')
+    MGRAY  = colors.HexColor('#555555')
+    ACCENT = colors.HexColor('#1E3A5F')
+
+    name_style = ParagraphStyle('PDFName', fontName='Helvetica-Bold', fontSize=22,
+                                 textColor=BLACK, alignment=TA_CENTER, spaceAfter=3, spaceBefore=0)
+    contact_style = ParagraphStyle('PDFContact', fontName='Helvetica', fontSize=8.5,
+                                    textColor=MGRAY, alignment=TA_CENTER, spaceAfter=8)
+    sec_style = ParagraphStyle('PDFSec', fontName='Helvetica-Bold', fontSize=10,
+                                textColor=ACCENT, spaceBefore=10, spaceAfter=1)
+    entry_title_style = ParagraphStyle('PDFETitle', fontName='Helvetica-Bold', fontSize=9.5,
+                                        textColor=BLACK, spaceBefore=5, spaceAfter=0)
+    entry_sub_style   = ParagraphStyle('PDFESub', fontName='Helvetica-Oblique', fontSize=9,
+                                        textColor=MGRAY, spaceBefore=0, spaceAfter=2)
+    entry_date_style  = ParagraphStyle('PDFEDate', fontName='Helvetica', fontSize=9,
+                                        textColor=MGRAY, alignment=TA_RIGHT, spaceBefore=5, spaceAfter=0)
+    entry_date_sub    = ParagraphStyle('PDFEDateSub', fontName='Helvetica', fontSize=9,
+                                        textColor=MGRAY, alignment=TA_RIGHT, spaceBefore=0, spaceAfter=2)
+    bullet_style = ParagraphStyle('PDFBullet', fontName='Helvetica', fontSize=9.5,
+                                   textColor=DGRAY, leftIndent=14, spaceAfter=2, leading=13)
+    plain_style  = ParagraphStyle('PDFPlain', fontName='Helvetica', fontSize=9.5,
+                                   textColor=DGRAY, spaceAfter=3, leading=14)
+
+    DATE_RE = re.compile(
+        r'(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s,.]+\d{4}'
+        r'|\bpresent\b|\d{4}\s*[-\u2013]\s*(?:\d{4}|present)',
+        re.IGNORECASE
     )
-    
+
+    def _parse_entries(content):
+        entries = []
+        cur_h, cur_b = [], []
+        for raw in content.split('\n'):
+            s = raw.strip()
+            if not s:
+                continue
+            if s[0] in '-\u2022*\u00b7\u2013':
+                cur_b.append(s.lstrip('-\u2022*\u00b7\u2013 ').strip())
+            else:
+                if cur_b:
+                    entries.append((cur_h, cur_b))
+                    cur_h, cur_b = [s], []
+                else:
+                    cur_h.append(s)
+        if cur_h or cur_b:
+            entries.append((cur_h, cur_b))
+        return entries
+
+    def _split_date(line):
+        m = DATE_RE.search(line)
+        if m:
+            date_str = line[m.start():].strip()
+            left = line[:m.start()].strip().rstrip('|,\u2013- ').strip()
+            return left, date_str
+        if '|' in line:
+            parts = [p.strip() for p in line.split('|')]
+            return parts[0], ' | '.join(parts[1:])
+        return line, ''
+
+    def section_block(title):
+        return [
+            Spacer(1, 4),
+            Paragraph(title.upper(), sec_style),
+            HRFlowable(width='100%', thickness=0.8, color=ACCENT, spaceAfter=3),
+        ]
+
+    def render_entry(headers, bullets):
+        items = []
+        for i, h in enumerate(headers):
+            left, right = _split_date(h)
+            st = entry_title_style if i == 0 else entry_sub_style
+            dt = entry_date_style  if i == 0 else entry_date_sub
+            if right:
+                row = Table(
+                    [[Paragraph(left, st), Paragraph(right, dt)]],
+                    colWidths=['72%', '28%']
+                )
+                row.setStyle(TableStyle([
+                    ('VALIGN',        (0, 0), (-1, -1), 'TOP'),
+                    ('LEFTPADDING',   (0, 0), (-1, -1), 0),
+                    ('RIGHTPADDING',  (0, 0), (-1, -1), 0),
+                    ('TOPPADDING',    (0, 0), (-1, -1), 0),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
+                ]))
+                items.append(row)
+            else:
+                items.append(Paragraph(h, st))
+        for b in bullets:
+            items.append(Paragraph(f'\u2022 {b}', bullet_style))
+        return items
+
     story = []
-    
-    if 'full_name' in resume_data:
-        story.append(Paragraph(resume_data['full_name'], title_style))
-        story.append(Paragraph(f"{resume_data.get('email', '')} | {resume_data.get('phone', '')}", styles['Normal']))
-        story.append(Spacer(1, 0.2*inch))
-    
+
+    # ── Header ──────────────────────────────────────────────────
+    full_name = resume_data.get('full_name', resume_data.get('id', 'Resume'))
+    story.append(Paragraph(full_name, name_style))
+
+    contact_parts = [p for p in [
+        resume_data.get('email', ''), resume_data.get('phone', '')
+    ] if p]
+    if contact_parts:
+        story.append(Paragraph('  |  '.join(contact_parts), contact_style))
+
+    story.append(HRFlowable(width='100%', thickness=1.5, color=ACCENT, spaceAfter=6))
+
+    # ── Sections ────────────────────────────────────────────────
     for section in resume_data.get('sections', []):
-        story.append(Paragraph(section['section_name'], heading_style))
-        story.append(Paragraph(section['content'].replace('\n', '<br/>'), styles['Normal']))
-        story.append(Spacer(1, 0.15*inch))
-    
+        sec_name = section['section_name']
+        content  = section.get('content', '')
+        story   += section_block(sec_name)
+
+        if 'skill' in sec_name.lower():
+            # Render skills as clean inline text
+            skills_text = '  •  '.join(
+                line.strip() for line in content.split('\n') if line.strip()
+            )
+            story.append(Paragraph(skills_text, plain_style))
+            continue
+
+        entries = _parse_entries(content)
+        if not entries:
+            story.append(Paragraph(content, plain_style))
+            continue
+
+        for headers, bullets in entries:
+            story += render_entry(headers, bullets)
+
     doc.build(story)
-    pdf_bytes = buffer.getvalue()
+    result = buffer.getvalue()
     buffer.close()
-    return pdf_bytes
+    return result
 
 def generate_docx(resume_data: dict) -> bytes:
+    from docx.shared import Pt, RGBColor, Inches
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.oxml.ns import qn
+    from docx.oxml import OxmlElement
+
     doc = Document()
-    
-    if 'full_name' in resume_data:
-        doc.add_heading(resume_data['full_name'], 0)
-        doc.add_paragraph(f"{resume_data.get('email', '')} | {resume_data.get('phone', '')}")
-    
+
+    for sec in doc.sections:
+        sec.top_margin    = Inches(0.55)
+        sec.bottom_margin = Inches(0.45)
+        sec.left_margin   = Inches(0.6)
+        sec.right_margin  = Inches(0.6)
+
+    # Reuse the default empty first paragraph for the name
+    name_para = doc.paragraphs[0]
+
+    ACCENT = RGBColor(0x1E, 0x3A, 0x5F)
+    BLACK  = RGBColor(0x1A, 0x1A, 0x1A)
+    MGRAY  = RGBColor(0x55, 0x55, 0x55)
+
+    DATE_RE = re.compile(
+        r'(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s,.]+\d{4}'
+        r'|\bpresent\b|\d{4}\s*[-\u2013]\s*(?:\d{4}|present)',
+        re.IGNORECASE
+    )
+
+    def sp(para, before=0, after=2):
+        para.paragraph_format.space_before = Pt(before)
+        para.paragraph_format.space_after  = Pt(after)
+
+    def add_hr(color='1E3A5F', sz='8'):
+        p = doc.add_paragraph()
+        sp(p, 0, 1)
+        pPr = p._p.get_or_add_pPr()
+        pBdr = OxmlElement('w:pBdr')
+        bottom = OxmlElement('w:bottom')
+        bottom.set(qn('w:val'), 'single')
+        bottom.set(qn('w:sz'), sz)
+        bottom.set(qn('w:space'), '1')
+        bottom.set(qn('w:color'), color)
+        pBdr.append(bottom)
+        pPr.append(pBdr)
+
+    def set_right_tab(para, pos_twips=10512):
+        """Right-aligned tab stop so name\tdate aligns to right margin."""
+        pPr = para._p.get_or_add_pPr()
+        tabs_el = OxmlElement('w:tabs')
+        tab_el  = OxmlElement('w:tab')
+        tab_el.set(qn('w:val'), 'right')
+        tab_el.set(qn('w:pos'), str(pos_twips))
+        tabs_el.append(tab_el)
+        pPr.append(tabs_el)
+
+    def _parse_entries(content):
+        entries = []
+        cur_h, cur_b = [], []
+        for raw in content.split('\n'):
+            s = raw.strip()
+            if not s:
+                continue
+            if s[0] in '-\u2022*\u00b7\u2013':
+                cur_b.append(s.lstrip('-\u2022*\u00b7\u2013 ').strip())
+            else:
+                if cur_b:
+                    entries.append((cur_h, cur_b))
+                    cur_h, cur_b = [s], []
+                else:
+                    cur_h.append(s)
+        if cur_h or cur_b:
+            entries.append((cur_h, cur_b))
+        return entries
+
+    def _split_date(line):
+        m = DATE_RE.search(line)
+        if m:
+            date_str = line[m.start():].strip()
+            left = line[:m.start()].strip().rstrip('|,\u2013- ').strip()
+            return left, date_str
+        if '|' in line:
+            parts = [p.strip() for p in line.split('|')]
+            return parts[0], ' | '.join(parts[1:])
+        return line, ''
+
+    # ── Name ────────────────────────────────────────────────────
+    full_name = resume_data.get('full_name', resume_data.get('id', 'Resume'))
+    name_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    sp(name_para, 0, 2)
+    nr = name_para.add_run(full_name)
+    nr.bold = True
+    nr.font.size = Pt(22)
+    nr.font.color.rgb = BLACK
+
+    # ── Contact ─────────────────────────────────────────────────
+    contact_parts = [p for p in [resume_data.get('email', ''), resume_data.get('phone', '')] if p]
+    if contact_parts:
+        cp = doc.add_paragraph(' | '.join(contact_parts))
+        cp.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        sp(cp, 0, 4)
+        for r in cp.runs:
+            r.font.size = Pt(9)
+            r.font.color.rgb = MGRAY
+
+    add_hr(color='1E3A5F', sz='12')
+
+    # ── Sections ────────────────────────────────────────────────
     for section in resume_data.get('sections', []):
-        doc.add_heading(section['section_name'], 1)
-        doc.add_paragraph(section['content'])
-    
+        sec_name = section['section_name']
+        content  = section.get('content', '')
+
+        sh = doc.add_paragraph()
+        sp(sh, 8, 1)
+        sr = sh.add_run(sec_name.upper())
+        sr.bold = True
+        sr.font.size = Pt(10)
+        sr.font.color.rgb = ACCENT
+        add_hr(color='1E3A5F', sz='8')
+
+        if 'skill' in sec_name.lower():
+            skills_text = ' • '.join(
+                line.strip() for line in content.split('\n') if line.strip()
+            )
+            sp_para = doc.add_paragraph(skills_text)
+            sp(sp_para, 1, 3)
+            for r in sp_para.runs:
+                r.font.size = Pt(9.5)
+                r.font.color.rgb = BLACK
+            continue
+
+        entries = _parse_entries(content)
+        if not entries:
+            pp = doc.add_paragraph(content)
+            sp(pp, 1, 2)
+            for r in pp.runs:
+                r.font.size = Pt(9.5)
+            continue
+
+        for headers, bullets in entries:
+            for i, h in enumerate(headers):
+                left, right = _split_date(h)
+                ep = doc.add_paragraph()
+                sp(ep, 4 if i == 0 else 0, 1)
+                if right:
+                    set_right_tab(ep)
+                    rl = ep.add_run(left)
+                    rl.bold   = (i == 0)
+                    rl.italic = (i > 0)
+                    rl.font.size      = Pt(9.5)
+                    rl.font.color.rgb = BLACK if i == 0 else MGRAY
+                    rd = ep.add_run('\t' + right)
+                    rd.font.size      = Pt(9)
+                    rd.font.color.rgb = MGRAY
+                else:
+                    rl = ep.add_run(h)
+                    rl.bold   = (i == 0)
+                    rl.italic = (i > 0)
+                    rl.font.size      = Pt(9.5)
+                    rl.font.color.rgb = BLACK if i == 0 else MGRAY
+            for b in bullets:
+                bp = doc.add_paragraph(style='List Bullet')
+                sp(bp, 0, 1)
+                br = bp.add_run(b)
+                br.font.size      = Pt(9.5)
+                br.font.color.rgb = BLACK
+
     buffer = io.BytesIO()
     doc.save(buffer)
     buffer.seek(0)
     return buffer.getvalue()
+
+def escape_latex(text: str) -> str:
+    """Escape special LaTeX characters in plain text."""
+    if not text:
+        return ""
+    for char, rep in [
+        ('&', r'\&'), ('%', r'\%'), ('$', r'\$'),
+        ('#', r'\#'), ('_', r'\_'),
+    ]:
+        text = text.replace(char, rep)
+    return text
+
+def generate_latex(resume_data: dict) -> str:
+    """Fill the ATS LaTeX template with resume data."""
+    template_path = ROOT_DIR / 'resume_template.tex'
+    with open(template_path, 'r', encoding='utf-8') as f:
+        template = f.read()
+
+    sections = {
+        s['section_name'].lower(): s.get('content', '')
+        for s in resume_data.get('sections', [])
+    }
+
+    def lines_of(text, n):
+        ls = [l.strip() for l in text.split('\n') if l.strip()]
+        return ls[:n] + [''] * max(0, n - len(ls))
+
+    exp_lines = lines_of(sections.get('experience', ''), 6)
+    edu_lines = lines_of(sections.get('education', ''), 3)
+
+    vals = {
+        'name':               escape_latex(resume_data.get('full_name', '')),
+        'job_title':          '',
+        'location_link':      'https://maps.google.com',
+        'location':           '',
+        'phone':              resume_data.get('phone', ''),
+        'email':              resume_data.get('email', ''),
+        'linkedin_url':       'https://linkedin.com',
+        'github_url':         'https://github.com',
+        'kaggle_url':         'https://kaggle.com',
+        'portfolio_url':      'https://example.com',
+        'degree':             escape_latex(edu_lines[0]),
+        'graduation_year':    '',
+        'university':         escape_latex(edu_lines[1]),
+        'cgpa':               '',
+        'professional_summary': escape_latex(sections.get('summary', '')),
+        'languages':          escape_latex(sections.get('skills', '')),
+        'ml_skills':          '',
+        'genai_skills':       '',
+        'ml_libraries':       '',
+        'databases':          '',
+        'developer_tools':    '',
+        'company_1':          '',
+        'duration_1':         '',
+        'location_1':         '',
+        'experience_point_1': escape_latex(exp_lines[0]),
+        'experience_point_2': escape_latex(exp_lines[1]),
+        'experience_point_3': escape_latex(exp_lines[2]),
+        'company_2':          '',
+        'duration_2':         '',
+        'location_2':         '',
+        'experience_point_4': escape_latex(exp_lines[3]),
+        'experience_point_5': escape_latex(exp_lines[4]),
+        'experience_point_6': escape_latex(exp_lines[5]),
+        'project_1_name':     '',
+        'project_1_tech':     '',
+        'project_1_demo':     'https://example.com',
+        'project_1_github':   'https://github.com',
+        'project_1_desc_1':   '',
+        'project_1_desc_2':   '',
+        'project_2_name':     '',
+        'project_2_tech':     '',
+        'project_2_demo':     'https://example.com',
+        'project_2_github':   'https://github.com',
+        'project_2_desc_1':   '',
+        'project_2_desc_2':   '',
+        'project_3_name':     '',
+        'project_3_tech':     '',
+        'project_3_desc_1':   '',
+        'project_3_desc_2':   '',
+        'certifications':     '',
+        'achievement_1':      '',
+        'achievement_2':      '',
+        'achievement_3':      '',
+        'spoken_languages':   'English',
+        'interests':          '',
+    }
+
+    for key, value in vals.items():
+        template = template.replace('{{' + key + '}}', value)
+
+    return template
 
 # API Endpoints
 
@@ -295,6 +650,61 @@ async def login(user_data: UserLogin):
     except Exception as e:
         logger.error(f"Login error: {e}")
         raise HTTPException(status_code=500, detail="Login failed")
+
+@api_router.post("/auth/google", response_model=Token)
+async def google_auth(request: GoogleAuthRequest):
+    """Sign in or register with Google OAuth."""
+    try:
+        from google.oauth2 import id_token
+        from google.auth.transport import requests as google_requests
+
+        google_client_id = os.environ.get("GOOGLE_CLIENT_ID")
+        if not google_client_id:
+            raise HTTPException(status_code=500, detail="Google OAuth not configured. Set GOOGLE_CLIENT_ID in backend .env")
+
+        # Verify the Google ID token
+        idinfo = id_token.verify_oauth2_token(
+            request.credential,
+            google_requests.Request(),
+            google_client_id
+        )
+
+        google_user_id = idinfo["sub"]
+        email = idinfo["email"]
+        full_name = idinfo.get("name", email.split("@")[0])
+
+        # Find or create user
+        user = await db.users.find_one({"email": email})
+
+        if not user:
+            user_id = str(uuid.uuid4())
+            user_doc = {
+                "id": user_id,
+                "email": email,
+                "full_name": full_name,
+                "google_id": google_user_id,
+                "password_hash": None,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+            await db.users.insert_one(user_doc)
+        else:
+            user_id = user["id"]
+            if not user.get("google_id"):
+                await db.users.update_one(
+                    {"id": user_id},
+                    {"$set": {"google_id": google_user_id}}
+                )
+
+        access_token = create_access_token(data={"sub": user_id, "email": email})
+        return {"access_token": access_token, "token_type": "bearer"}
+
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail=f"Invalid Google token: {str(e)}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Google auth error: {e}")
+        raise HTTPException(status_code=500, detail="Google authentication failed")
 
 @api_router.get("/auth/me", response_model=User)
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
@@ -502,8 +912,12 @@ async def generate_resume(resume_id: str, format: str = "pdf", user_id: str = De
         elif format == "docx":
             docx_bytes = generate_docx(resume)
             return {"file_data": docx_bytes.hex(), "format": "docx"}
+        elif format == "latex":
+            latex_str = generate_latex(resume)
+            latex_bytes = latex_str.encode('utf-8')
+            return {"file_data": latex_bytes.hex(), "format": "latex"}
         else:
-            raise HTTPException(status_code=400, detail="Format must be 'pdf' or 'docx'")
+            raise HTTPException(status_code=400, detail="Format must be 'pdf', 'docx', or 'latex'")
     except Exception as e:
         logger.error(f"Generate error: {e}")
         raise HTTPException(status_code=500, detail=str(e))

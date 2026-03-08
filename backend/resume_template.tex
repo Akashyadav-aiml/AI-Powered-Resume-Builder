@@ -1,0 +1,180 @@
+%-------------------------
+% Resume Template (ATS Optimized)
+%------------------------
+
+\documentclass[letterpaper,10.8pt]{article}
+
+\usepackage{latexsym}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{marvosym}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage[english]{babel}
+\usepackage{tabularx}
+\usepackage{fontawesome5}
+\usepackage{multicol}
+\setlength{\multicolsep}{-3pt}
+\setlength{\columnsep}{-1pt}
+\input{glyphtounicode}
+
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Margins
+\addtolength{\oddsidemargin}{-0.55in}
+\addtolength{\evensidemargin}{-0.55in}
+\addtolength{\textwidth}{1.1in}
+\addtolength{\topmargin}{-.65in}
+\addtolength{\textheight}{1.35in}
+
+\urlstyle{same}
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+\titleformat{\section}{
+  \vspace{-6pt}\scshape\raggedright\large\bfseries
+}{}{0em}{}[\titlerule \vspace{-5pt}]
+
+\pdfgentounicode=1
+
+% Custom commands
+\newcommand{\resumeItem}[1]{\item\small{#1\vspace{-2pt}}}
+\newcommand{\resumeSubheading}[4]{
+  \item
+  \begin{tabular*}{1.0\textwidth}[t]{l@{\extracolsep{\fill}}r}
+    \textbf{#1} & \textbf{\small #2} \\
+    \textit{\small #3} & \textit{\small #4} \\
+  \end{tabular*}\vspace{-6pt}
+}
+\newcommand{\resumeProjectHeading}[2]{
+  \item
+  \begin{tabular*}{1.0\textwidth}{l@{\extracolsep{\fill}}r}
+    \small #1 & \textbf{\small #2}
+  \end{tabular*}\vspace{-6pt}
+}
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=*]}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0in,label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+
+\begin{document}
+
+%----------HEADER----------
+\begin{center}
+    {\Huge \scshape {{name}}} \\ \vspace{4pt}
+    \textbf{\Large {{job_title}}} \\ \vspace{4pt}
+    \small
+    \href{{{location_link}}}{\faMapMarker\ {{location}}} \quad
+    \href{tel:{{phone}}}{\faPhone\ {{phone}}} \quad
+    \href{mailto:{{email}}}{\faEnvelope\ {{email}}} \quad
+    \href{{{linkedin_url}}}{\faLinkedin\ LinkedIn} \quad
+    \href{{{github_url}}}{\faGithub\ GitHub} \quad
+    \href{{{kaggle_url}}}{\faKaggle\ Kaggle} \quad
+    \href{{{portfolio_url}}}{\faGlobe\ Portfolio}
+\end{center}
+
+%-----------EDUCATION-----------
+\section{Education}
+\resumeSubHeadingListStart
+\resumeSubheading
+  {{{degree}}}
+  {{{graduation_year}}}
+  {{{university}}}
+  {CGPA: {{cgpa}}}
+\resumeSubHeadingListEnd
+
+%-----------SUMMARY-----------
+\section{Summary}
+{{professional_summary}}
+
+%-----------TECHNICAL SKILLS-----------
+\section{Technical Skills}
+\textbf{Languages:} {{languages}} \\
+\textbf{Machine Learning:} {{ml_skills}} \\
+\textbf{Generative AI:} {{genai_skills}} \\
+\textbf{ML Libraries:} {{ml_libraries}} \\
+\textbf{Databases:} {{databases}} \\
+\textbf{Developer Tools:} {{developer_tools}}
+
+%-----------PROFESSIONAL EXPERIENCE-----------
+\section{Professional Experience}
+\resumeSubHeadingListStart
+
+\resumeSubheading
+  {{{company_1}}}
+  {{{duration_1}}}
+  {{{location_1}}}
+  {}
+\resumeItemListStart
+  \resumeItem{{{experience_point_1}}}
+  \resumeItem{{{experience_point_2}}}
+  \resumeItem{{{experience_point_3}}}
+\resumeItemListEnd
+
+\resumeSubheading
+  {{{company_2}}}
+  {{{duration_2}}}
+  {{{location_2}}}
+  {}
+\resumeItemListStart
+  \resumeItem{{{experience_point_4}}}
+  \resumeItem{{{experience_point_5}}}
+  \resumeItem{{{experience_point_6}}}
+\resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+%-----------PROJECTS-----------
+\section{Projects}
+\resumeSubHeadingListStart
+
+\resumeProjectHeading
+  {\textbf{{{project_1_name}}} $|$ \emph{{{project_1_tech}}}}
+  {\href{{{project_1_demo}}}{Demo} $|$ \href{{{project_1_github}}}{GitHub}}
+\resumeItemListStart
+  \resumeItem{{{project_1_desc_1}}}
+  \resumeItem{{{project_1_desc_2}}}
+\resumeItemListEnd
+
+\resumeProjectHeading
+  {\textbf{{{project_2_name}}} $|$ \emph{{{project_2_tech}}}}
+  {\href{{{project_2_demo}}}{Demo} $|$ \href{{{project_2_github}}}{GitHub}}
+\resumeItemListStart
+  \resumeItem{{{project_2_desc_1}}}
+  \resumeItem{{{project_2_desc_2}}}
+\resumeItemListEnd
+
+\resumeProjectHeading
+  {\textbf{{{project_3_name}}} $|$ \emph{{{project_3_tech}}}}
+  {}
+\resumeItemListStart
+  \resumeItem{{{project_3_desc_1}}}
+  \resumeItem{{{project_3_desc_2}}}
+\resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+%-----------CERTIFICATIONS-----------
+\section{Certifications}
+\small{{{certifications}}}
+
+%-----------ACHIEVEMENTS-----------
+\section{Achievements \& Recognition}
+\resumeItemListStart
+  \resumeItem{{{achievement_1}}}
+  \resumeItem{{{achievement_2}}}
+  \resumeItem{{{achievement_3}}}
+\resumeItemListEnd
+
+%-----------ADDITIONAL INFORMATION-----------
+\section{Additional Information}
+\textbf{Languages:} {{spoken_languages}} \\
+\textbf{Interests:} {{interests}}
+
+\end{document}

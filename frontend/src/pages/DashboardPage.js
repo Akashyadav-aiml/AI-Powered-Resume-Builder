@@ -65,7 +65,7 @@ const DashboardPage = () => {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `resume.${format}`;
+      a.download = `resume.${format === 'latex' ? 'tex' : format}`;
       a.click();
       toast.success(`Resume downloaded as ${format.toUpperCase()}`);
     } catch (error) {
@@ -271,6 +271,14 @@ const DashboardPage = () => {
                   >
                     <Download className="mr-2 h-4 w-4" /> DOCX
                   </Button>
+                  <Button
+                    data-testid="download-original-latex-btn"
+                    onClick={() => handleDownload("latex")}
+                    variant="outline"
+                    className="rounded-sm"
+                  >
+                    <Download className="mr-2 h-4 w-4" /> LaTeX
+                  </Button>
                 </div>
               </div>
               <div className="space-y-6">
@@ -312,6 +320,13 @@ const DashboardPage = () => {
                       className="bg-[#10B981] hover:bg-[#0D9668] text-white rounded-sm"
                     >
                       <Download className="mr-2 h-4 w-4" /> DOCX
+                    </Button>
+                    <Button
+                      data-testid="download-enhanced-latex-btn"
+                      onClick={() => handleDownload("latex")}
+                      className="bg-[#10B981] hover:bg-[#0D9668] text-white rounded-sm"
+                    >
+                      <Download className="mr-2 h-4 w-4" /> LaTeX
                     </Button>
                   </div>
                 </div>

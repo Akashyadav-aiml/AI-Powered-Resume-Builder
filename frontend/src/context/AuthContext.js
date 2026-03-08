@@ -1,6 +1,7 @@
 import { createContext, useState, useContext, useEffect } from "react";
 import axios from "axios";
 import { API } from "@/lib/api";
+import { googleLogout } from "@react-oauth/google";
 
 const AuthContext = createContext(null);
 
@@ -79,15 +80,35 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const loginWithGoogle = async (credentialResponse) => {
+    try {
+      const response = await axios.post(`${API}/auth/google`, {
+        credential: credentialResponse.credential
+      });
+      const { access_token } = response.data;
+      localStorage.setItem("token", access_token);
+      setToken(access_token);
+      axios.defaults.headers.common["Authorization"] = `Bearer ${access_token}`;
+      await verifyToken();
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.detail || "Google sign-in failed"
+      };
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem("token");
     setToken(null);
     setUser(null);
     delete axios.defaults.headers.common["Authorization"];
+    googleLogout();
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, register, login, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, register, login, logout, loginWithGoogle }}>
       {children}
     </AuthContext.Provider>
   );

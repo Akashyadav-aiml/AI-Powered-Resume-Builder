@@ -6,10 +6,11 @@ import { Label } from "@/components/ui/label";
 import { Loader2, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
+import { GoogleLogin } from "@react-oauth/google";
 
 const RegisterPage = () => {
   const navigate = useNavigate();
-  const { register } = useAuth();
+  const { register, loginWithGoogle } = useAuth();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
@@ -55,6 +56,16 @@ const RegisterPage = () => {
     }
     
     setLoading(false);
+  };
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    const result = await loginWithGoogle(credentialResponse);
+    if (result.success) {
+      toast.success("Account created with Google!");
+      navigate("/upload");
+    } else {
+      toast.error(result.error);
+    }
   };
 
   return (
@@ -173,6 +184,27 @@ const RegisterPage = () => {
               Sign in here
             </Link>
           </p>
+        </div>
+
+        <div className="mt-6">
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-200" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-4 bg-white text-[#888888] font-manrope">or sign up with</span>
+            </div>
+          </div>
+          <div className="mt-4 flex justify-center">
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={() => toast.error("Google sign-up failed")}
+              shape="rectangular"
+              theme="outline"
+              text="signup_with"
+              width="340"
+            />
+          </div>
         </div>
       </div>
     </div>
